@@ -43,9 +43,11 @@ def regex(config):
 
 if __name__=='__main__':
 
+
     config = 'pysep_config.yaml'
-    template = 'template.py'
+    template = 'templates/SerialGridSearch.DoubleCouple.py'
     output = 'output.py'
+
 
     # read event information from PySEP configuration file
     config = read_yaml(config)
