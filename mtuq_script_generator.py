@@ -50,7 +50,8 @@ if __name__=='__main__':
     # read event information from PySEP configuration file
     config = read_yaml(config)
 
-    # read template script
+
+    # read template
     with open(template, "r") as file:
         lines = file.readlines()
 
@@ -64,6 +65,9 @@ if __name__=='__main__':
                 lines[_i] = re.sub(key+'.*', key+val+',', line)
                 break
 
+
+    # write modified script
     with open(output, "w") as file:
         file.writelines(lines)
+
 
