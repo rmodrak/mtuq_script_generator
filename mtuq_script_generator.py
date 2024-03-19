@@ -1,81 +1,114 @@
 #!/usr/bin/env python
 
 import re
+import sys
 import yaml
 
 from mtuq.util import urlopen_with_retry
+from os.path import abspath, isdir, exists, join
 
 
 def _join(*args):
     return '/'.join(args)
 
 
+def _abspath(base, *args):
+    return join(abspath(base), *args)
+
+
 def read_yaml(filename):
     with open(filename) as stream:
         try:
-            config = yaml.safe_load(stream)
+            event = yaml.safe_load(stream)
         except yaml.YAMLError as exception:
             print(exception)
-    return config
+    return event
 
 
 def github_url(
     base='https://raw.githubusercontent.com',
     repo='uafgeotools/mtuq',
     branch='master',
-    path='examples/SerialGridSearch.DoubleCouple.py',
+    dirname='examples',
+    filename='SerialGridSearch.DoubleCouple.py',
     ):
 
-    return _join(base, repo, branch, path)
+    return _join(base, repo, branch, dirname, filename)
 
 
-def regex(config):
+def regex(event):
     return [
-        ['\'time\':',       '\'%s\'' % config['origin_time']],
-        ['\'latitude\':',   '%f'     % config['event_latitude']],
-        ['\'longitude\':',  '%f'     % config['event_longitude']],
-        ['\'depth_in_m\':', '%f'     % (1000.*config['event_depth_km'])],
-        ['magnitude=',      '%f'     % config['event_magnitude']],
-        ['magnitudes=',     '[%f]'   % config['event_magnitude']],
+        ['path_data=    ',  '\'%s\'' % event['path_data']],
+        ['path_weights= ',  '\'%s\'' % event['path_weights']],
+        ['\'time\':',       '\'%s\'' % event['origin_time']],
+        ['\'latitude\':',   '%f'     % event['event_latitude']],
+        ['\'longitude\':',  '%f'     % event['event_longitude']],
+        ['\'depth_in_m\':', '%f'     % (1000.*event['event_depth_km'])],
+        ['magnitude=',      '%f'     % event['event_magnitude']],
+        ['magnitudes=',     '[%f]'   % event['event_magnitude']],
         ]
+
+
+TEMPLATES = [
+    'GridSearch.FullMomentTensor.py',
+    ]
 
 
 
 if __name__=='__main__':
-    """ Script generator rough draft
-    """
+    #
+    # USAGE
+    #   mtuq_script_generator  OUTPUT_DIR  PYSEP_FILE
+    #   
 
     #
-    # Eventually, we will replace the hardcoded paths below with a flexible
-    # command line interface
+    # input argument parsing 
     #
+    assert len(sys.argv) >= 3
 
-    config = 'tests/pysep_config.yaml'
-    template = 'templates/SerialGridSearch.DoubleCouple.py'
-    output = 'output.py'
+    output_dir = sys.argv[1]
+    assert isdir(output_dir)
 
-
-    # read event information from PySEP configuration file
-    config = read_yaml(config)
-
-
-    # read template
-    with open(template, "r") as file:
-        lines = file.readlines()
+    input_files = sys.argv[2:]
+    for input_file in input_files:
+        assert exists(input_file)
 
 
-    for key, val in regex(config):
-        pattern = re.compile('.*'+key+'.*')
+    for input_file in input_files:
 
-        # apply regular expressions
-        for _i, line in enumerate(lines):
-            if pattern.match(line):
-                lines[_i] = re.sub(key+'.*', key+val+',', line)
-                break
+        # read event information from YAML file
+        event = read_yaml(input_file)
 
 
-    # write modified script
-    with open(output, "w") as file:
-        file.writelines(lines)
+        # make a guess at paths
+        event['path_data'] = _abspath(output_dir, 'SAC/*.sac')
+        event['path_weights'] = _abspath(output_dir, 'weights.dat')
+
+
+        # download templates
+        for name in TEMPLATES:
+
+            remote = github_url(filename=name)
+            local = event['event_tag']+'_'+name
+
+            # read template
+            urlopen_with_retry(remote, local)
+            with open(local, "r") as file:
+                lines = file.readlines()
+
+
+            for key, val in regex(event):
+                pattern = re.compile('.*'+key+'.*')
+
+                # regular expression substitution
+                for _i, line in enumerate(lines):
+                    if pattern.match(line):
+                        lines[_i] = re.sub(key+'.*', key+val+',', line)
+                        break
+
+
+            # write modified script
+            with open(join(output_dir, local), "w") as file:
+                file.writelines(lines)
 
 
