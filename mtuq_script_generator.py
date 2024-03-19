@@ -42,9 +42,15 @@ def regex(config):
 
 
 if __name__=='__main__':
+    """ Script generator rough draft
+    """
 
+    #
+    # Eventually, we will replace the hardcoded paths below with a flexible
+    # command line interface
+    #
 
-    config = 'pysep_config.yaml'
+    config = 'tests/pysep_config.yaml'
     template = 'templates/SerialGridSearch.DoubleCouple.py'
     output = 'output.py'
 
