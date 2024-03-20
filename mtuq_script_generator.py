@@ -11,24 +11,6 @@ from mtuq.util import urlopen_with_retry
 from os.path import abspath, isdir, exists, join
 
 
-def read_yaml(filename):
-    with open(filename) as stream:
-        dict = yaml.safe_load(stream)
-    return dict
-
-
-def is_url(path_or_url):
-    try:
-        URLValidator()(path_or_url)
-        return True
-    except ValidationError:
-        return False
-
-
-def _abspath(base, *args):
-    return join(abspath(base), *args)
-
-
 def read_pysep(input_file, output_dir='.'):
     try:
          dict = read_yaml(input_file)
@@ -59,40 +41,76 @@ def read_pysep(input_file, output_dir='.'):
     return dict
 
 
-def regex_rules(pysep_dict):
-    # The following substition rules will be applied to each template
+def regex_substitutions(pysep_dict):
+    #
+    # To generate event-specific MTUQ scripts, we apply a regular expression
+    # substitution (similar to a sed command) to every of one of the existing
+    # template files below
+    #
+    # The following substitution gets applied to every line of the template file:
+    #
+    #   value = format % value
+    #   re.sub(pattern+'.*', pattern+value+',', line)
+    #
+
     return [
-        ['path_data=    ',  '\'%s\'' %       event['path_data']],
-        ['path_weights= ',  '\'%s\'' %       event['path_weights']],
-        ['\'time\':',       '\'%s\'' %       event['origin_time']],
-        ['\'latitude\':',   '%f'     %       event['event_latitude']],
-        ['\'longitude\':',  '%f'     %       event['event_longitude']],
-        ['\'depth_in_m\':', '%f'     % (1.e3*event['event_depth_km'])],
-        ['magnitude=',      '%f'     %       event['event_magnitude']],
-        ['magnitudes=',     '[%f]'   %       event['event_magnitude']],
+        # pattern, format, value
+        ['path_data=    ',  '\'%s\'',      event['path_data']],
+        ['path_weights= ',  '\'%s\'',      event['path_weights']],
+        ['\'time\':',       '\'%s\'',      event['origin_time']],
+        ['\'latitude\':',   '%f',          event['event_latitude']],
+        ['\'longitude\':',  '%f',          event['event_longitude']],
+        ['\'depth_in_m\':', '%f',    (1.e3*event['event_depth_km'])],
+        ['magnitude=',      '%f',          event['event_magnitude']],
+        ['magnitudes=',     '[%f]',        event['event_magnitude']],
         ]
 
+
 TEMPLATES = [
+    # can be either local paths or URLs
     "https://raw.githubusercontent.com/uafgeotools/mtuq/master/examples/GridSearch.FullMomentTensor.py"
     ]
 
 
+def read_yaml(filename):
+    with open(filename) as stream:
+        dict = yaml.safe_load(stream)
+    return dict
+
+
+def is_url(path_or_url):
+    try:
+        URLValidator()(path_or_url)
+        return True
+    except ValidationError:
+        return False
+
+
+def _abspath(base, *args):
+    return join(abspath(base), *args)
+
+
+
 if __name__=='__main__':
-    #
-    # Suppose that
-    #
-    #   - INPUT_FILE is a PySEP input file
-    #   - OUTPUT_DIR the corresponding PYSEP output directory
-    #
-    # An example of a combined PySEP and MTUQ workflow would then be:
-    #
-    #   >> pysep -c config.yaml
-    #   >> mtuq_script_generator INPUT_FILE OUTPUT_DIR
-    #   >> cd OUTPUT_DIR
-    #   >> mpirun -n 4 GridSearch.FullMomentTensor.py
 
+    #
+    # Imagine we have already run PySEP for a particular event, but have yet
+    # to run MTUQ.
+    #
+    # Suppose that our PySEP input and output are as follows:
+    #
+    #   - INPUT_FILE is the PySEP input file (YAML format)
+    #
+    #   - OUTPUT_DIR is the PySEP output directory 
+    #     (contains SAC waveforms, weight files, etc.)
+    #
+    #
+    # To generate MTUQ scripts for the same event, this script can be invoked
+    # as follows:
+    #
+    #   >> mtuq_script_generator.py INPUT_FILE OUTPUT_DIR
+    #
 
-    assert len(sys.argv) == 3
 
     input_file = sys.argv[1]
     assert exists(input_file)
@@ -105,7 +123,7 @@ if __name__=='__main__':
     event = read_pysep(input_file, output_dir)
 
 
-    # write event-specific scripts to output_dir
+    # write event-specific MTUQ scripts to output_dir
     for template in TEMPLATES:
 
         output_file = event['event_tag']+'_'+template.split('/')[-1]
@@ -125,14 +143,15 @@ if __name__=='__main__':
             lines = file.readlines()
 
         # generate substitution rules
-        tuples = regex_rules(event)
+        tuples = regex_substitutions(event)
 
-        for pattern, value in tuples:
+        for pattern, fmt, value in tuples:
             compiled = re.compile('.*'+pattern+'.*')
 
             for _i, line in enumerate(lines):
                 if compiled.match(line):
-                    # apply substitution rules
+                    # apply substitution rule
+                    value = fmt % value
                     lines[_i] = re.sub(pattern+'.*', pattern+value+',', line)
 
 
