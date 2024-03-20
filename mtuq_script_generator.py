@@ -43,9 +43,9 @@ def regex_substitutions(pysep_dict):
     #
     # To generate event-specific MTUQ scripts, we apply a regular expression
     # substitution (similar to a sed command) to every of one of the existing
-    # template files below
+    # template files below.
     #
-    # The following substitution gets applied to every line of the template file:
+    # The following gets applied to every line of the template file:
     #
     #   value = format % value
     #   re.sub(pattern+'.*', pattern+value+',', line)
@@ -91,10 +91,8 @@ def is_url(path_or_url):
         return False
 
     # More robust, but requires django
-
     #from django.core.validators import URLValidator
     #from django.core.exceptions import ValidationError
-
     #try:
     #    URLValidator()(path_or_url)
     #    return True
@@ -110,7 +108,7 @@ def _abspath(base, *args):
 if __name__=='__main__':
 
     #
-    # Imagine we have already run PySEP for a particular event, but have yet
+    # Imagine we have already run PySEP for a given event, but have yet
     # to run MTUQ.
     #
     # Suppose that our PySEP input and output are as follows:
@@ -121,7 +119,7 @@ if __name__=='__main__':
     #     (contains SAC waveforms, weight files, etc.)
     #
     #
-    # To generate MTUQ scripts for the same event, this script can be invoked
+    # To generate MTUQ scripts for the given event, this script can be invoked
     # as follows:
     #
     #   >> mtuq_script_generator.py INPUT_FILE OUTPUT_DIR
