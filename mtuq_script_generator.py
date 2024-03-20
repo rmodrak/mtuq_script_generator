@@ -5,8 +5,6 @@ import shutil
 import sys
 import yaml
 
-from django.core.validators import URLValidator
-from django.core.exceptions import ValidationError
 from mtuq.util import urlopen_with_retry
 from os.path import abspath, isdir, exists, join
 
@@ -80,10 +78,28 @@ def read_yaml(filename):
 
 def is_url(path_or_url):
     try:
-        URLValidator()(path_or_url)
-        return True
-    except ValidationError:
+        # python2
+        from urlparse import urlparse
+    except ModuleNotFoundError:
+        # python3
+        from urllib.parse import urlparse
+
+    try:
+        result = urlparse(path_or_url)
+        return all([result.scheme, result.netloc])
+    except AttributeError:
         return False
+
+    # More robust, but requires django
+
+    #from django.core.validators import URLValidator
+    #from django.core.exceptions import ValidationError
+
+    #try:
+    #    URLValidator()(path_or_url)
+    #    return True
+    #except ValidationError:
+    #    return False
 
 
 def _abspath(base, *args):
@@ -99,7 +115,7 @@ if __name__=='__main__':
     #
     # Suppose that our PySEP input and output are as follows:
     #
-    #   - INPUT_FILE is the PySEP input file (YAML format)
+    #   - INPUT_FILE is the PySEP input file
     #
     #   - OUTPUT_DIR is the PySEP output directory 
     #     (contains SAC waveforms, weight files, etc.)
