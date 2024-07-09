@@ -1,0 +1,118 @@
+#!/usr/bin/env python
+
+import re
+import shutil
+import sys
+
+from os.path import isdir, exists, join
+from script_generator import read_pysep, regex_patterns, read_yaml, is_url
+
+
+
+TEMPLATES = [
+    # can be either local paths or URLs
+    "templates/FullMomentTensor.SurfaceWaves.py"
+    ]
+
+
+if __name__=='__main__':
+
+    #
+    # OVERVIEW
+    #   Generates ready-to-go event-specific MTUQ scripts using information
+    #   populated from PySEP input file
+    #
+
+    #
+    # USAGE
+    #   Imagine we have already run PySEP for a given event, but have yet
+    #   to run MTUQ.
+    #
+    #   Suppose that our PySEP input and output are as follows:
+    #
+    #   - INPUT_FILE is the PySEP input file
+    #
+    #   - OUTPUT_DIR is the PySEP output directory 
+    #     (contains SAC waveforms, weight files, etc.)
+    #
+    #   MTUQ scripts for the given event can then be generated as follows:
+    #
+    #     script_generator_NorthKorea <INPUT_FILE> <OUTPUT_DIR>
+    #
+
+
+
+    input_file = sys.argv[1]
+    assert exists(input_file)
+
+    output_dir = sys.argv[2]
+    assert isdir(output_dir)
+
+
+    # read event information from input_file
+    event = read_pysep(input_file, output_dir)
+
+
+    # write event-specific MTUQ scripts to output_dir
+    for template in TEMPLATES:
+
+        output_file = event['event_tag']+'_'+template.split('/')[-1]
+
+        print('')
+        print('template:    ', template)
+        print('output_file: ', output_file)
+        print('')
+
+        if is_url(template):
+            urlopen_with_retry(template, output_file)
+        else:
+            assert exists(template)
+            shutil.copy(template, output_file)
+
+        with open(output_file, "r") as file:
+            lines = file.readlines()
+
+        #
+        # apply region-specific defaults
+        #
+        tuples = [
+            # pattern, format, value
+            ['path_greens=    ',  '\'%s\'', '/sa/uq/axisem-datbases/hartse_ak135f_2s'],
+            ]
+
+        for pattern, fmt, value in tuples:
+            compiled = re.compile('.*'+pattern+'.*')
+
+            for _i, line in enumerate(lines):
+                if compiled.match(line):
+                    # apply substitution rule
+                    try:
+                        string = fmt % value
+                    except:
+                        string = fmt % float(value)
+                    lines[_i] = re.sub(pattern+'.*', pattern+string, line)
+
+                    break
+
+        #
+        # apply event-specific changes from PySEP file
+        #
+        tuples = regex_patterns(event)
+        for pattern, fmt, value in tuples:
+            compiled = re.compile('.*'+pattern+'.*')
+
+            for _i, line in enumerate(lines):
+                if compiled.match(line):
+                    # apply substitution rule
+                    try:
+                        string = fmt % value
+                    except:
+                        string = fmt % float(value)
+                    lines[_i] = re.sub(pattern+'.*', pattern+string, line)
+
+                    break
+
+        with open(output_file, "w") as file:
+            file.writelines(lines)
+
+
