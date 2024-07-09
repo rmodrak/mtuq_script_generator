@@ -20,7 +20,7 @@ if __name__=='__main__':
     #
     # OVERVIEW
     #   Generates ready-to-go event-specific MTUQ scripts using information
-    #   populated from PySEP input file
+    #   from PySEP input file
     #
 
     #
@@ -37,7 +37,7 @@ if __name__=='__main__':
     #
     #   MTUQ scripts for the given event can then be generated as follows:
     #
-    #     script_generator_NorthKorea <INPUT_FILE> <OUTPUT_DIR>
+    #     script_generator_WChina <INPUT_FILE> <OUTPUT_DIR>
     #
 
 
